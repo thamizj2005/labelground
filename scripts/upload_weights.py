@@ -124,7 +124,8 @@ def main():
         api.upload_folder(
             folder_path=str(WEIGHTS_DIR),
             repo_id=repo_id,
-            repo_type="model"
+            repo_type="model",
+            ignore_patterns=[".cache*", "cache*", "matplotlib*", "__pycache__*"]
         )
         print("\n🎉 SUCCESS! All model weights are uploaded and hosted on Hugging Face!")
         print("=" * 60)
