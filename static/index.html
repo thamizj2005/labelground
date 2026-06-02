@@ -1,0 +1,2207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labelground</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 250px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideIn 0.3s ease-out forwards;
+            border-left: 5px solid #3498db;
+        }
+
+        .toast.success {
+            border-left-color: #2ecc71;
+        }
+
+        .toast.error {
+            border-left-color: #e74c3c;
+        }
+
+        .toast.warning {
+            border-left-color: #f1c40f;
+        }
+
+        .toast-message {
+            margin-right: 15px;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #95a5a6;
+        }
+
+        /* Auto-train toggle styling */
+        .auto-train-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #444;
+            cursor: pointer;
+            border: 1px solid #eee;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .auto-train-toggle:hover {
+            background: #eef2f7;
+        }
+
+        .auto-train-toggle input {
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+
+        /* Annotations Panel Toggle */
+        #instance-panel {
+            transition: width 0.3s ease, min-width 0.3s ease, opacity 0.3s ease;
+        }
+
+        #instance-panel.panel-collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            opacity: 0;
+            border: none !important;
+        }
+
+        #annotations-toggle-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        #annotations-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Floating re-open button when panel is collapsed */
+        #annotations-reopen-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px 0 0 6px;
+            padding: 10px 6px;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 16px;
+            display: none;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s;
+        }
+
+        #annotations-reopen-btn:hover {
+            background: #2980b9;
+        }
+
+        /* Sidebar buttons row - stay compact */
+        #sidebar-image-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #sidebar-image-controls button {
+            flex-shrink: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* AI Progress Bar Styling */
+        .ai-progress-container {
+            width: 100%;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+            /* Hidden by default */
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .ai-progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .ai-progress-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+            text-align: center;
+        }
+
+        /* Logs Modal Content */
+        #logs-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .log-entry {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #95a5a6;
+            white-space: nowrap;
+            font-family: monospace;
+        }
+
+        .log-message {
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .log-entry.error .log-message {
+            color: #e74c3c;
+        }
+
+        .log-entry.success .log-message {
+            color: #27ae60;
+        }
+
+        #log-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        /* Custom Confirmation Modal */
+        #confirmation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Full Screen Export Wizard Overrides */
+        #export-wizard-modal {
+            background-color: white;
+            /* No dimming, full opaque BG or minor dimming but content is full */
+            display: none;
+        }
+
+        #export-wizard-modal .modal-content {
+            width: 100vw;
+            height: 100vh;
+            max-width: none;
+            max-height: none;
+            border-radius: 0;
+            padding: 0;
+            /* Custom padding internal */
+            display: flex;
+            flex-direction: column;
+            box-shadow: none;
+        }
+
+        .wizard-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .wizard-body {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .wizard-footer {
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .confirm-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            animation: popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .confirm-box h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .confirm-box p {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+        }
+
+        .confirm-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .confirm-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .confirm-actions .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .confirm-actions .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* --- Landing Page Styles --- */
+        #landing-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            z-index: 20000;
+            /* Above everything */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        .landing-container {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: -10px;
+        }
+
+        .landing-logo {
+            max-width: 500px;
+            width: 80vw;
+            height: auto;
+            display: block;
+            animation: paintReveal 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes paintReveal {
+            0% {
+                filter: blur(20px) brightness(1.2);
+                opacity: 0;
+                mask-image: radial-gradient(circle, black 0%, transparent 0%);
+                -webkit-mask-image: radial-gradient(circle, black 0%, transparent 0%);
+                transform: scale(0.9);
+            }
+
+            30% {
+                opacity: 1;
+                filter: blur(10px) brightness(1.1);
+            }
+
+            100% {
+                filter: blur(0px) brightness(1);
+                opacity: 1;
+                mask-image: radial-gradient(circle, black 100%, transparent 100%);
+                -webkit-mask-image: radial-gradient(circle, black 100%, transparent 100%);
+                transform: scale(1);
+            }
+        }
+
+        .landing-button-container {
+            animation: btnSlideUp 1s ease-out 1.8s both;
+        }
+
+        @keyframes btnSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .get-started-btn {
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .get-started-btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .enter-hint {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 2.2s forwards;
+            margin-top: 15px;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Full Screen Export Wizard Overrides */
+        #export-wizard-modal {
+            background-color: white;
+            /* No dimming, full opaque BG or minor dimming but content is full */
+            display: none;
+        }
+
+        #export-wizard-modal .modal-content {
+            width: 100vw;
+            height: 100vh;
+            max-width: none;
+            max-height: none;
+            border-radius: 0;
+            padding: 0;
+            /* Custom padding internal */
+            display: flex;
+            flex-direction: column;
+            box-shadow: none;
+        }
+
+        .wizard-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .wizard-body {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .wizard-footer {
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Format Cards */
+        .format-card {
+            border: 2px solid #ddd;
+            padding: 40px;
+            border-radius: 16px;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .format-card:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+        }
+
+        .format-card.selected {
+            border: 4px solid #3498db !important;
+            background: #f0f7ff;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+        }
+
+        .format-card strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        .format-card p {
+            font-size: 1.1rem;
+            color: #555;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Landing Page -->
+    <div id="landing-page">
+        <div class="landing-container">
+            <div class="logo-container">
+                <img src="/static/logo3.png" alt="Labelground Logo" class="landing-logo">
+            </div>
+
+            <div class="button-container landing-button-container">
+                <button class="get-started-btn" onclick="enterApp()">Get Started</button>
+            </div>
+
+            <div class="enter-hint">
+                or press Enter to continue
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="dashboard-container" style="display: none;">
+        <div class="dashboard-header">
+            <div style="position: absolute; top: 20px; right: 20px;" id="user-display-dashboard">
+                <!-- User info will be injected here -->
+            </div>
+            <div class="dashboard-logo-container">
+                <img src="/static/logo3.png" class="dashboard-logo">
+                <h1>Labelground</h1>
+            </div>
+            <p>Professional Dataset Annotation & Management Platform</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Create Project Card -->
+            <div class="dashboard-card" id="create-project-card" onclick="showCreateProjectModal()">
+                <div class="card-icon">🚀</div>
+                <h3>Create New Project</h3>
+                <p>Start a new annotation project with Bounding Boxes, Polygons, or Keypoints.</p>
+            </div>
+
+            <!-- Manage Project Card -->
+            <div class="dashboard-card" onclick="showManageProjectsView()">
+                <div class="card-icon">📂</div>
+                <h3>Manage Projects</h3>
+                <p>Open, edit, or delete existing projects. Access your annotation workspace.</p>
+            </div>
+
+            <!-- Export Project Card -->
+            <div class="dashboard-card" id="export-project-card" onclick="showExportView()">
+                <div class="card-icon">📤</div>
+                <h3>Export Project</h3>
+                <p>Export your datasets in YOLO, COCO, Pascal VOC, or LabelMe formats.</p>
+            </div>
+
+            <!-- Analytics Dashboard Card -->
+            <div class="dashboard-card" onclick="showAnalyticsView()">
+                <div class="card-icon">📊</div>
+                <h3>Platform Analytics</h3>
+                <p>View system-wide statistics and overall annotation performance.</p>
+            </div>
+
+            <!-- Activity Logs Card -->
+            <div class="dashboard-card" onclick="showLogsView()">
+                <div class="card-icon">📋</div>
+                <h3>Activity Logs</h3>
+                <p>Audit user activity logs and review system errors for debugging.</p>
+            </div>
+
+            <!-- Help Card -->
+            <div class="dashboard-card" onclick="showHelpView()">
+                <div class="card-icon">❓</div>
+                <h3>Help & Documentation</h3>
+                <p>Learn about workflows, annotation tools, and keyboard shortcuts.</p>
+            </div>
+
+            <!-- User Management Card (Admin/Sub-Admin) -->
+            <div class="dashboard-card" id="user-management-card" style="display: none;"
+                onclick="showUserManagementView()">
+                <div class="card-icon">👥</div>
+                <h3>User Management</h3>
+                <p>Add and manage annotators or sub-administrators.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management View -->
+    <div id="user-management-view" class="dashboard-container"
+        style="display: none; align-items: flex-start; justify-content: flex-start; overflow-y: auto;">
+        <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+            <div class="dashboard-header"
+                style="text-align: left; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="/static/logo3.png" class="dashboard-logo" style="height: 40px;">
+                        <h1 style="margin: 0; font-size: 2rem;">User Management</h1>
+                    </div>
+                </div>
+                <!-- Create User Button placed here dynamically if needed -->
+                <button class="btn btn-primary" onclick="showCreateUserModal()">➕ Add User</button>
+            </div>
+
+            <div
+                style="background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                        <thead style="background: #f8f9fa; border-bottom: 2px solid #edf2f7;">
+                            <tr>
+                                <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">ID</th>
+                                <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Username</th>
+                                <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Role</th>
+                                <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-management-body">
+                            <!-- Users injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Projects View -->
+    <div id="manage-projects-view" class="dashboard-container"
+        style="display: none; align-items: flex-start; justify-content: flex-start; overflow-y: auto;">
+        <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+            <div class="dashboard-header"
+                style="text-align: left; margin-bottom: 30px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="/static/logo3.png" class="dashboard-logo" style="height: 40px;">
+                    <h1 style="margin: 0; font-size: 2rem;">Manage Projects</h1>
+                </div>
+            </div>
+
+            <div id="manage-projects-grid" class="dashboard-grid"
+                style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); max-width: 100%;">
+                <!-- Project cards will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Project View -->
+    <div id="export-project-view" class="dashboard-container"
+        style="display: none; align-items: flex-start; justify-content: flex-start; overflow-y: auto;">
+        <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+            <div class="dashboard-header"
+                style="text-align: left; margin-bottom: 30px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="/static/logo3.png" class="dashboard-logo" style="height: 40px;">
+                    <h1 style="margin: 0; font-size: 2rem;">Export Project</h1>
+                </div>
+            </div>
+
+            <p style="color: #666; margin-bottom: 20px;">Select a project to export:</p>
+            <div id="export-projects-grid" class="dashboard-grid"
+                style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); max-width: 100%;">
+                <!-- Project cards injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics View -->
+    <div id="analytics-view" class="dashboard-container"
+        style="display: none; align-items: flex-start; justify-content: flex-start; overflow-y: auto;">
+        <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+            <div class="dashboard-header"
+                style="text-align: left; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="/static/logo3.png" class="dashboard-logo" style="height: 40px;">
+                        <h1 style="margin: 0; font-size: 2rem;">Platform Analytics</h1>
+                    </div>
+                </div>
+            </div> <!-- Stats Tab -->
+            <div id="analytics-stats-tab">
+                <div class="stats-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
+                    <div class="stat-card"
+                        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border-left: 5px solid #3498db;">
+                        <h3 style="margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase;">Total
+                            Projects</h3>
+                        <div id="stat-projects"
+                            style="font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0;">0</div>
+                    </div>
+                    <div class="stat-card"
+                        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border-left: 5px solid #2ecc71;">
+                        <h3 style="margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase;">Total
+                            Images</h3>
+                        <div id="stat-images"
+                            style="font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0;">0</div>
+                    </div>
+                    <div class="stat-card"
+                        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border-left: 5px solid #f1c40f;">
+                        <h3 style="margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase;">Annotations
+                        </h3>
+                        <div id="stat-annotations"
+                            style="font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0;">0</div>
+                    </div>
+                    <div class="stat-card"
+                        style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border-left: 5px solid #9b59b6;">
+                        <h3 style="margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase;">Active
+                            Users</h3>
+                        <div id="stat-users"
+                            style="font-size: 2.5rem; font-weight: bold; color: #2c3e50; margin: 10px 0;">0</div>
+                    </div>
+                </div>
+
+                <div
+                    style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <h3 style="margin-top: 0; margin-bottom: 20px;">Projects by Annotation Type</h3>
+                    <div id="stats-type-distribution" style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Distribution bars injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs View -->
+    <div id="logs-view" class="dashboard-container"
+        style="display: none; align-items: flex-start; justify-content: flex-start; overflow-y: auto;">
+        <div style="width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+            <div class="dashboard-header"
+                style="text-align: left; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="/static/logo3.png" class="dashboard-logo" style="height: 40px;">
+                        <h1 style="margin: 0; font-size: 2rem;">Activity Logs</h1>
+                    </div>
+                </div>
+                <div class="dashboard-tabs" style="display: flex; gap: 10px;">
+                    <button id="tab-btn-user-logs" class="btn btn-primary" onclick="showLogsTab('activity')">👥 User
+                        Activity</button>
+                    <button id="tab-btn-error-logs" class="btn btn-secondary" onclick="showLogsTab('errors')">⚠️ System
+                        Errors</button>
+                </div>
+            </div>
+
+            <!-- Activity Logs Tab -->
+            <div id="logs-activity-tab">
+                <div
+                    style="background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                            <thead style="background: #f8f9fa; border-bottom: 2px solid #edf2f7;">
+                                <tr>
+                                    <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Time</th>
+                                    <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">User</th>
+                                    <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Action</th>
+                                    <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Project</th>
+                                    <th style="padding: 15px 20px; color: #7f8c8d; font-weight: 600;">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activity-logs-body">
+                                <!-- Logs injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Logs Tab -->
+            <div id="logs-errors-tab" style="display: none;">
+                <div
+                    style="background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                            <thead style="background: #fdf2f2; border-bottom: 2px solid #f8d7da;">
+                                <tr>
+                                    <th style="padding: 15px 20px; color: #e74c3c; font-weight: 600;">Time</th>
+                                    <th style="padding: 15px 20px; color: #e74c3c; font-weight: 600;">Project</th>
+                                    <th style="padding: 15px 20px; color: #e74c3c; font-weight: 600;">Action</th>
+                                    <th style="padding: 15px 20px; color: #e74c3c; font-weight: 600;">Details</th>
+                                    <th style="padding: 15px 20px; color: #e74c3c; font-weight: 600;">Traceback</th>
+                                </tr>
+                            </thead>
+                            <tbody id="error-logs-body">
+                                <!-- Error logs injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace View (Hidden by default) -->
+    <div id="workspace-view" style="display: none;">
+        <div class="app-container">
+            <!-- Left Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <h2>Projects</h2>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="showManageProjectsView()">
+                        ← Back
+                    </button>
+                </div>
+
+                <div id="project-list" style="display: none;"></div>
+
+                <div style="margin-top: 10px;">
+                    <div style="margin-bottom: 8px;">
+                        <h3 style="margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px;">
+                            Images
+                            <span id="image-counter"
+                                style="font-size: 0.75rem; font-weight: normal; color: #3498db; background: rgba(52,152,219,0.1); padding: 2px 7px; border-radius: 10px;"></span>
+                        </h3>
+                        <div id="sidebar-image-controls">
+                            <button class="btn btn-secondary" onclick="toggleImageShuffle()" title="Shuffle Image Order"
+                                style="padding: 4px 8px; font-size: 1.1rem;">
+                                🔀
+                            </button>
+                            <button class="btn btn-secondary" id="verification-mode-btn"
+                                onclick="toggleVerificationMode()" title="Verification Mode: Show only AI suggestions"
+                                style="padding: 4px 8px; font-size: 1.1rem;">
+                                🔍
+                            </button>
+                            <button class="btn btn-secondary" id="confusion-sort-btn" onclick="toggleConfusionSort()"
+                                title="Active Learning: Sort by AI confusion (low confidence first)"
+                                style="padding: 4px 8px; font-size: 1.1rem;">
+                                🧠
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="auto-train-toggle">
+                        <input type="checkbox" id="auto-train-checkbox" checked onchange="saveAutoTrainSetting()">
+                        <span>Auto-Training 🎓</span>
+                    </label>
+
+                    <label class="auto-train-toggle">
+                        <input type="checkbox" id="auto-finetune-checkbox" checked onchange="saveAutoTrainSetting()">
+                        <span>Auto Fine-Tuning 🔧</span>
+                    </label>
+
+                    <div id="image-list" style="max-height: calc(100vh - 300px); overflow-y: auto;"></div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="top-bar">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 15px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <button class="btn btn-secondary sidebar-toggle-btn" onclick="toggleSidebar()"
+                                title="Toggle Sidebar">
+                                ☰
+                            </button>
+                            <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;"
+                                onclick="showDashboard()">
+                                <img src="/static/logo3.png" style="height: 28px; width: auto;" alt="Logo">
+                                <span style="font-weight: 600; color: white;">Labelground</span>
+                            </div>
+                            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 5px;">
+                            </div>
+                            <div id="project-info-minimal" style="color: rgba(255,255,255,0.8); font-size: 14px;"></div>
+                        </div>
+
+                        <!-- Global Actions (populated by JS) -->
+                        <div id="global-actions" style="display: flex; gap: 8px;"></div>
+
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <!-- Training Progress (only visible when training) -->
+                            <div id="ai-progress-toolbar"
+                                style="display: none; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                                <div class="ai-progress-container"
+                                    style="display: block; width: 80px; margin-top: 0; height: 6px; background: rgba(255,255,255,0.1);">
+                                    <div id="ai-progress-fill-toolbar" class="ai-progress-fill"></div>
+                                </div>
+                                <span id="ai-progress-text-toolbar"
+                                    style="font-size: 11px; color: white; white-space: nowrap;">🎓
+                                    Initializing...</span>
+                            </div>
+
+                            <!-- Logs Icon -->
+                            <button class="btn btn-secondary" onclick="showLogsModal()" title="View System Logs"
+                                style="position: relative; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; width: 36px; height: 36px; padding: 0; font-size: 18px;">
+                                📜
+                                <span id="log-badge">0</span>
+                            </button>
+
+                            <div id="user-display"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotation-area" id="annotation-area">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" onclick="zoomIn()" title="Zoom In (+)">+</button>
+                        <div class="current-zoom" id="zoom-level">100%</div>
+                        <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out (-)">-</button>
+                        <button class="zoom-btn" onclick="resetZoomAndFit()" title="Fit Image (F)">↔</button>
+                        <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom (0)">↺</button>
+                        <button class="zoom-btn" onclick="showKeyboardShortcutsHelp()" title="Keyboard Shortcuts (?)"
+                            style="margin-left: 20px;">❓</button>
+                    </div>
+
+                    <div class="canvas-container" id="canvas-container">
+                        <canvas id="annotation-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="toolbar" id="toolbar">
+                    <!-- Tools will be dynamically added based on project type -->
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+
+    <!-- Create Project Modal -->
+    <div class="modal" id="create-project-modal">
+        <div class="modal-content">
+            <h2>Create New Project</h2>
+            <form id="create-project-form">
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" class="form-control" id="project-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Annotation Type</label>
+                    <select class="select-control" id="annotation-type" required onchange="updateLabelSchemaUI()">
+                        <option value="">Select type</option>
+                        <option value="bbox">Bounding Boxes</option>
+                        <option value="polygon">Polygon Segmentation</option>
+                        <option value="keypoints">Keypoints</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="classes-section">
+                    <label>Classes</label>
+                    <div id="classes-list">
+                        <div class="class-item">
+                            <input type="color" class="class-color" value="#3498db">
+                            <input type="text" class="form-control" placeholder="Class name" style="flex: 1;">
+                            <button type="button" class="btn btn-secondary" onclick="removeClass(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addClass()" style="margin-top: 10px;">
+                        Add Class
+                    </button>
+                </div>
+
+                <div class="form-group" id="keypoints-section" style="display: none;">
+                    <label>Keypoint Definitions</label>
+                    <div id="keypoints-list"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addKeypoint()" style="margin-top: 10px;">
+                        Add Keypoint
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideCreateProjectModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" id="import-modal">
+        <div class="modal-content">
+            <h2>Import Data</h2>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="showImageImport()" style="margin-right: 10px;">
+                    Import Images
+                </button>
+                <button class="btn btn-primary" onclick="showVideoImport()">
+                    Import Video
+                </button>
+            </div>
+
+            <div id="import-image-section" style="display: none;">
+                <div class="form-group">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">📁
+                        Select Images</label>
+                    <input type="file" class="form-control" id="image-file-input" multiple accept="image/*"
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Tip:</strong> You can select multiple images at once
+                    </small>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">📂
+                        Or Select Entire Folder</label>
+                    <input type="file" class="form-control" id="folder-input" webkitdirectory directory multiple
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Tip:</strong> This will import all images from the selected folder
+                    </small>
+                </div>
+                <button class="btn btn-success" onclick="importImagesFromBrowser()"
+                    style="font-size: 18px; padding: 14px 28px; margin-top: 20px;">
+                    📥 Import Selected Files
+                </button>
+            </div>
+
+            <div id="import-video-section" style="display: none;">
+                <div class="form-group">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">🎬
+                        Select Video File</label>
+                    <input type="file" class="form-control" id="video-file-input" accept="video/*"
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Supported formats:</strong> MP4, AVI, MOV, MKV, WebM
+                    </small>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">⚡
+                        Frames Per Second (FPS)</label>
+                    <input type="number" class="form-control" id="target-fps" value="1" step="0.1" min="0.1" max="60"
+                        style="font-size: 16px; padding: 12px;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Examples:</strong><br>
+                        • 1 FPS = 1 frame per second (60 frames/minute)<br>
+                        • 0.1 FPS = 1 frame every 10 seconds (6 frames/minute)<br>
+                        • 0.5 FPS = 1 frame every 2 seconds (30 frames/minute)
+                    </small>
+                </div>
+
+                <!-- Frame Preview Section -->
+                <div id="video-frame-preview"
+                    style="margin-top: 20px; display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                    <label style="font-weight: 600; color: #2c3e50; margin-bottom: 10px; display: block;">Sample Frame
+                        Preview</label>
+                    <div style="display: flex; gap: 20px; align-items: flex-start;">
+                        <!-- Hidden video element for capturing -->
+                        <video id="preview-video-hidden" style="display: none;" preload="metadata" muted
+                            playsinline></video>
+                        <canvas id="preview-canvas"
+                            style="max-width: 300px; height: auto; border-radius: 4px; border: 1px solid #ddd;"></canvas>
+                        <div style="flex: 1;">
+                            <div style="background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
+                                <div style="margin-bottom: 5px;"><strong>Duration:</strong> <span
+                                        id="video-duration">-</span></div>
+                                <div><strong>Est. Frames:</strong> <span id="estimated-frames">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div id="import-progress-container" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="font-weight: 600; color: #2c3e50;">Extracting Frames...</span>
+                        <span id="import-progress-text" style="color: #666;">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden;">
+                        <div id="import-progress-bar"
+                            style="width: 0%; height: 100%; background: #2ecc71; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="importVideoFromBrowser()"
+                    style="font-size: 18px; padding: 14px 28px; margin-top: 20px;">
+                    🎬 Extract Frames
+                </button>
+            </div>
+
+            <!-- End of import-modal-content -->
+        </div>
+    </div>
+
+    <!-- Add Class Modal -->
+    <div class="modal" id="add-class-modal">
+        <div class="modal-content" style="min-width: 300px;">
+            <h2>Add New Class</h2>
+            <div class="form-group">
+                <label>Class Name (Display)</label>
+                <input type="text" class="form-control" id="new-class-name" placeholder="e.g. Car">
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>AI Model Prompt (Search term)</label>
+                <input type="text" class="form-control" id="new-class-prompt"
+                    placeholder="e.g. white sedan car (optional)">
+                <small style="color: #666; font-size: 11px;">If empty, the Class Name is used for AI search.</small>
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" class="form-control" id="new-class-color" value="#00FF88">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="hideAddClassModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="submitNewClass()">Add Class</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Class Modal -->
+    <div class="modal" id="edit-class-modal">
+        <div class="modal-content" style="min-width: 350px;">
+            <h2>Edit Class</h2>
+            <input type="hidden" id="edit-class-id">
+            <div class="form-group">
+                <label>Class Name (Display)</label>
+                <input type="text" class="form-control" id="edit-class-name" placeholder="Class name">
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>AI Model Prompt</label>
+                <input type="text" class="form-control" id="edit-class-prompt"
+                    placeholder="e.g. detailed search term for AI">
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" class="form-control" id="edit-class-color" value="#3498db">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="hideEditClassModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="deleteClassFromModal()">Delete Class</button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="submitEditClass()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Modal -->
+    <div class="modal" id="training-modal">
+        <div class="modal-content" style="min-width: 400px; padding: 25px;">
+            <h2 style="margin-bottom: 20px;">🎓 Train Custom Model</h2>
+            <p style="color: #666; margin-bottom: 20px;">Train a custom YOLO model using your verified
+                human-annotations. We will automatically augment your data to improve accuracy.</p>
+
+            <div class="form-group">
+                <label>Epochs (Training Rounds)</label>
+                <input type="text" class="form-control" id="train-epochs" value="50" pattern="[0-9]+"
+                    placeholder="e.g., 50, 100, 250">
+                <small style="color: #999;">Enter 50 for small datasets, 100-300 for better accuracy, or up to 1000 for
+                    maximum training.</small>
+            </div>
+
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Augmentation Multiplier</label>
+                <select class="form-control" id="train-multiplier">
+                    <option value="0">None (Use original only)</option>
+                    <option value="1">1x (Double your data)</option>
+                    <option value="3" selected>3x (Triple your data - RECOMMENDED)</option>
+                    <option value="5">5x (Large expansion)</option>
+                </select>
+                <small style="color: #999;">Generates mutated copies (flips, blur, noise) of each verified
+                    image.</small>
+            </div>
+
+            <div
+                style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px dashed #ddd;">
+                <div id="training-stats" style="font-size: 0.9em; color: #555;">
+                    Checking project data...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="hideTrainingModal()">Cancel</button>
+                <button class="btn btn-primary" id="start-train-btn"
+                    style="flex: 1; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #1a1a1a; font-weight: bold;"
+                    onclick="startTraining()">🚀 Start Training</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal" id="help-modal">
+        <div class="modal-content"
+            style="max-width: 860px; height: 85vh; padding: 0; display: flex; flex-direction: column;">
+            <div
+                style="padding: 20px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">📖</span>
+                    <h2 style="margin: 0; font-size: 1.3rem;">Help &amp; Documentation</h2>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="hideHelpModal()"
+                    style="padding: 4px 12px; font-size: 18px;">×</button>
+            </div>
+
+            <div style="display: flex; height: 100%; overflow: hidden;">
+                <!-- Sidebar -->
+                <div
+                    style="width: 180px; background: #f8f9fa; border-right: 1px solid #eee; padding: 16px; flex-shrink: 0; overflow-y: auto;">
+                    <ul
+                        style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                        <li>
+                            <a href="#" onclick="switchHelpTab('shortcuts'); return false;" id="help-tab-shortcuts"
+                                class="help-tab-link"
+                                style="display: block; padding: 9px 12px; text-decoration: none; color: #2c3e50; font-weight: bold; border-radius: 6px; background: #e9ecef; font-size: 13px;">⌨️
+                                Shortcuts</a>
+                        </li>
+                        <li>
+                            <a href="#" onclick="switchHelpTab('ai');" id="help-tab-ai" class="help-tab-link"
+                                style="display: block; padding: 9px 12px; text-decoration: none; color: #666; font-weight: normal; border-radius: 6px; font-size: 13px;">🤖
+                                AI Features</a>
+                        </li>
+                        <li>
+                            <a href="#" onclick="switchHelpTab('workflow');" id="help-tab-workflow"
+                                class="help-tab-link"
+                                style="display: block; padding: 9px 12px; text-decoration: none; color: #666; font-weight: normal; border-radius: 6px; font-size: 13px;">📝
+                                Workflow</a>
+                        </li>
+                        <li>
+                            <a href="#" onclick="switchHelpTab('about');" id="help-tab-about" class="help-tab-link"
+                                style="display: block; padding: 9px 12px; text-decoration: none; color: #666; font-weight: normal; border-radius: 6px; font-size: 13px;">ℹ️
+                                About</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Content -->
+                <div style="flex: 1; padding: 28px; overflow-y: auto;" id="help-content-area">
+
+                    <!-- ===== SHORTCUTS ===== -->
+                    <div id="help-section-shortcuts">
+                        <h3 style="margin-top: 0; color: #2c3e50;">⌨️ Keyboard Shortcuts</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 16px;">
+                            <div>
+                                <h4
+                                    style="border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-bottom: 12px; color: #2c3e50;">
+                                    📝 Annotation</h4>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Verify &amp; Save</span> <strong>V / Space / Ctrl+S</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Delete Selected</span> <strong>Del / Backspace</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Cancel Drawing</span> <strong>Esc</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Undo</span> <strong>Ctrl+Z</strong></div>
+                            </div>
+                            <div>
+                                <h4
+                                    style="border-bottom: 2px solid #2ecc71; padding-bottom: 8px; margin-bottom: 12px; color: #2c3e50;">
+                                    🖼️ Navigation</h4>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Next Image</span> <strong>→ / N</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Previous Image</span> <strong>← / P</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Fit to Screen</span> <strong>F</strong></div>
+                            </div>
+                            <div>
+                                <h4
+                                    style="border-bottom: 2px solid #f1c40f; padding-bottom: 8px; margin-bottom: 12px; color: #2c3e50;">
+                                    🔍 Zoom &amp; Pan</h4>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Zoom In</span> <strong>+ / = / Scroll Up</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Zoom Out</span> <strong>- / Scroll Down</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Reset Zoom</span> <strong>0</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Pan Canvas</span> <strong>Middle-click drag / Space+drag</strong></div>
+                            </div>
+                            <div>
+                                <h4
+                                    style="border-bottom: 2px solid #9b59b6; padding-bottom: 8px; margin-bottom: 12px; color: #2c3e50;">
+                                    ❓ General</h4>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Toggle Help</span> <strong>H / ?</strong></div>
+                                <div
+                                    style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+                                    <span>Run Auto-Annotate</span> <strong>A</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== AI FEATURES ===== -->
+                    <div id="help-section-ai" style="display: none;">
+                        <h3 style="margin-top: 0; color: #2c3e50;">🤖 AI Features Guide</h3>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 24px;">Labelground uses an AI ensemble
+                            (YOLO-World + Grounding DINO + SAM) to help you annotate faster. Here's what every AI button
+                            and toggle does:</p>
+
+                        <!-- Auto-Annotate -->
+                        <div
+                            style="background: linear-gradient(135deg, #667eea10, #764ba210); border: 1px solid #667eea40; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🤖</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">AI Auto-Annotate</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Top Bar → AI Group</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Runs AI on the
+                                <strong>currently selected image only</strong>. It uses YOLO-World and Grounding DINO
+                                models to detect your project classes. If you have a custom-trained model available, it
+                                uses that instead for higher accuracy.<br><br>
+                                <strong>When to use:</strong> When you want to quickly get AI suggestions for a single
+                                image before reviewing. After the AI annotates, a yellow border appears on the image
+                                thumbnail. You then review and click <em>"✅ Save &amp; Verify"</em> or <em>"🚀 Confirm
+                                    &amp; Next"</em> to accept.
+                            </p>
+                        </div>
+
+                        <!-- Batch AI -->
+                        <div
+                            style="background: linear-gradient(135deg, #f093fb10, #f5576c10); border: 1px solid #f5576c40; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🚀</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Batch AI Annotation</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Top Bar → AI Group</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Annotates <strong>all
+                                    pending (un-annotated) images</strong> in your project in the background
+                                automatically. A progress bar appears in the top toolbar showing real-time
+                                progress.<br><br>
+                                <strong>When to use:</strong> When you have freshly imported a large batch of images and
+                                want to get AI suggestions for all of them at once before you start reviewing. This runs
+                                as a background task — you can continue working while it runs.
+                            </p>
+                        </div>
+
+                        <!-- Auto-AI Checkbox -->
+                        <div
+                            style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">✨</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Auto-AI Checkbox (Auto)</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Top Bar → AI Group → "Auto" toggle</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">When checked, AI
+                                automatically runs on every image you navigate to that hasn't been annotated yet. Think
+                                of it as a <em>"live streaming AI assistant"</em>.<br><br>
+                                <strong>When to use:</strong> Enable this when you want to move through images quickly —
+                                the AI pre-annotates each image as you arrive so you only need to verify and confirm.
+                            </p>
+                        </div>
+
+                        <!-- Auto-Training -->
+                        <div
+                            style="background: linear-gradient(135deg, #43e97b10, #38f9d710); border: 1px solid #43e97b40; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🎓</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Auto-Training Checkbox</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Left Sidebar → "Auto-Training 🎓"</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">When enabled, the
+                                system <strong>automatically triggers a model training run</strong> in the background
+                                when you accumulate enough verified (human-annotated) images. Training milestones: first
+                                10, then every 20 images.<br><br>
+                                <strong>What it does:</strong> Trains a custom YOLO model specifically on your project's
+                                data. After training, this custom model is used instead of the base zero-shot models,
+                                dramatically improving accuracy for your specific objects.<br><br>
+                                <strong>Recommendation:</strong> Keep this ON. The model improves iteratively — the more
+                                you verify, the better the AI suggestions become.
+                            </p>
+                        </div>
+
+                        <!-- Auto Fine-Tuning -->
+                        <div
+                            style="background: linear-gradient(135deg, #11998e10, #38ef7d10); border: 1px solid #11998e40; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🔧</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Auto Fine-Tuning Checkbox</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Left Sidebar → "Auto Fine-Tuning 🔧"</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Similar to
+                                Auto-Training but <strong>fine-tunes an existing custom model</strong> incrementally
+                                rather than training from scratch. This is faster and uses newer annotations to refine
+                                the model.<br><br>
+                                <strong>Difference from Auto-Training:</strong> Auto-Training builds a model from
+                                scratch on all verified data. Auto Fine-Tuning takes the existing model and continues
+                                refining it. Both can be ON simultaneously for best results.
+                            </p>
+                        </div>
+
+                        <!-- Manual Train Model -->
+                        <div
+                            style="background: linear-gradient(135deg, #43e97b10, #38f9d710); border: 1px solid #38f9d740; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🎓</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Train Model Button</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Top Bar → "🎓 Train"</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Opens the training
+                                dialog where you can <strong>manually kick off a custom model training</strong>. You can
+                                configure training epochs (50–300 recommended) and a data augmentation multiplier to
+                                expand your dataset.<br><br>
+                                <strong>When to use:</strong> When you have verified at least 10–20 images and want to
+                                manually trigger training immediately without waiting for the auto-training milestone.
+                            </p>
+                        </div>
+
+                        <!-- Active Learning -->
+                        <div
+                            style="background: linear-gradient(135deg, #6a3de810, #8360ec10); border: 1px solid #8360ec40; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🧠</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Confusion Sort (Active
+                                        Learning)</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Left Sidebar → 🧠 button</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Sorts your image list
+                                based on <strong>AI confidence scores</strong> — images where the AI is least confident
+                                (low-confidence detections) appear first. This is an <em>Active Learning</em>
+                                technique.<br><br>
+                                <strong>Why it matters:</strong> Annotating images the AI struggles with gives the most
+                                training value. By focusing on confusing cases, each annotation you make improves the
+                                model more than annotating easy images would.
+                            </p>
+                        </div>
+
+                        <!-- Verification Mode -->
+                        <div
+                            style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 18px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">🔍</span>
+                                <div>
+                                    <strong style="font-size: 15px; color: #2c3e50;">Verification Mode</strong>
+                                    <div
+                                        style="font-size: 11px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        Left Sidebar → 🔍 button</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #444; font-size: 13px; line-height: 1.7;">Filters the image list
+                                to show <strong>only AI-annotated images</strong> waiting for human verification. This
+                                gives you a focused review queue.<br><br>
+                                <strong>Recommended workflow:</strong> Run Batch AI → Switch to Verification Mode →
+                                Review and confirm AI annotations one by one → Let Auto-Training retrain the model.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- ===== WORKFLOW ===== -->
+                    <div id="help-section-workflow" style="display: none;">
+                        <h3 style="margin-top: 0; color: #2c3e50;">📝 Complete Workflow Guide</h3>
+
+                        <div
+                            style="background: #f0f7ff; border-left: 4px solid #3498db; padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+                            <strong style="color: #2980b9;">💡 Recommended AI-Assisted Workflow</strong>
+                            <p style="margin: 6px 0 0; font-size: 13px; color: #444; line-height: 1.6;">Import Images →
+                                Run Batch AI → Review &amp; Verify in Verification Mode → Auto-Training creates better
+                                model → Repeat.</p>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">1</span>
+                                    Create Project</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">Go to Dashboard →
+                                    Create New Project. Choose annotation type: <strong>Bounding Box</strong> (for
+                                    object detection), <strong>Polygon</strong> (for segmentation), or
+                                    <strong>Keypoints</strong>. Add class labels and assign colors.</p>
+                            </div>
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">2</span>
+                                    Import Data</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">Click <strong>📥
+                                        Import</strong> in the top bar. You can import individual images, a full folder,
+                                    or extract frames from a video at a custom FPS (e.g., 1 FPS = 1 frame per second).
+                                </p>
+                            </div>
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">3</span>
+                                    Run Batch AI</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">Click <strong>🚀
+                                        Batch</strong> to let AI annotate all your images automatically. Monitor
+                                    progress in the top toolbar. Meanwhile you can start reviewing already-processed
+                                    images.</p>
+                            </div>
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">4</span>
+                                    Annotate &amp; Verify</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">
+                                    Manually adjust or verify AI annotations:<br>
+                                    • <strong>BBox:</strong> Drag on canvas to draw<br>
+                                    • <strong>Polygon (Draw Box):</strong> Draw a box around object → SAM segments
+                                    it<br>
+                                    • <strong>Polygon (Click):</strong> Single click on object → SAM auto-segments<br>
+                                    • <strong>Manual Polygon:</strong> Click to place points, right-click to finish<br>
+                                    • <strong>Keypoints:</strong> Click to place anatomical points<br><br>
+                                    Press <strong>V</strong> or click <strong>✅ Save &amp; Verify</strong> to mark as
+                                    human-verified.
+                                </p>
+                            </div>
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #43e97b; color: #1a1a1a; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">5</span>
+                                    Model Improves Automatically</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">When you have 10+
+                                    verified images, Auto-Training kicks in and trains a custom model. After training,
+                                    the AI uses <strong>your custom model</strong> instead of the base zero-shot model.
+                                    The more you verify, the smarter the AI becomes.</p>
+                            </div>
+                            <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 18px;">
+                                <h4
+                                    style="margin: 0 0 8px; color: #2c3e50; display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;">6</span>
+                                    Export Dataset</h4>
+                                <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">From the
+                                    Dashboard, go to <strong>Export Project</strong>. Choose format (YOLO, COCO, Pascal
+                                    VOC, LabelMe, JSON), configure train/val/test splits, and optionally apply image
+                                    augmentation to multiply your dataset size.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== ABOUT ===== -->
+                    <div id="help-section-about" style="display: none;">
+                        <h3 style="margin-top: 0; color: #2c3e50;">ℹ️ About Labelground</h3>
+                        <p style="line-height: 1.7; color: #555; font-size: 13px;">
+                            <strong>Labelground</strong> is a professional <em>offline</em> AI-assisted annotation
+                            platform designed for maximum data privacy and annotation speed.
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px;">
+                                <h4
+                                    style="margin: 0 0 10px; font-size: 13px; color: #7f8c8d; text-transform: uppercase;">
+                                    🤖 AI Models</h4>
+                                <ul
+                                    style="margin: 0; padding: 0 0 0 16px; color: #444; font-size: 13px; line-height: 1.8;">
+                                    <li>YOLO-World (zero-shot detection)</li>
+                                    <li>Grounding DINO (text-guided detection)</li>
+                                    <li>SAM (Segment Anything Model)</li>
+                                    <li>Custom YOLO (your trained model)</li>
+                                </ul>
+                            </div>
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px;">
+                                <h4
+                                    style="margin: 0 0 10px; font-size: 13px; color: #7f8c8d; text-transform: uppercase;">
+                                    🛠️ Tech Stack</h4>
+                                <ul
+                                    style="margin: 0; padding: 0 0 0 16px; color: #444; font-size: 13px; line-height: 1.8;">
+                                    <li>Python + FastAPI (backend)</li>
+                                    <li>Vanilla JS + Canvas API (frontend)</li>
+                                    <li>SQLite (local database)</li>
+                                    <li>Ultralytics YOLO (training)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div
+                            style="margin-top: 20px; padding: 14px 18px; background: #f0fff4; border: 1px solid #2ecc71; border-radius: 8px; font-size: 13px; color: #27ae60; line-height: 1.6;">
+                            <strong>🔒 100% Offline &amp; Private</strong><br>
+                            All data stays on your machine. No cloud uploads, no external API calls. Your dataset never
+                            leaves your local environment.
+                        </div>
+                        <div style="margin-top: 12px; font-size: 12px; color: #999; text-align: center;">Version 1.0.0 ·
+                            Built with ❤️ for AI researchers</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Wizard Modal (Full Screen) -->
+    <div class="modal" id="export-wizard-modal">
+        <div class="modal-content">
+            <div class="wizard-container">
+
+                <h2
+                    style="font-size: 2.5rem; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px;">
+                    Export Dataset</h2>
+
+                <div id="export-wizard-steps" class="wizard-body">
+
+                    <!-- Step 1: Format -->
+                    <div class="wizard-step" id="export-step-1">
+                        <h3 style="font-size: 2rem; margin-bottom: 30px; color: #34495e;">Step 1: Select Format</h3>
+                        <div class="format-options"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 20px;">
+                            <div class="format-card selected" onclick="selectExportFormat(this, 'yolo')">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">📄</div>
+                                <strong>YOLO</strong>
+                                <p>TXT files per image, normalized coordinates.</p>
+                            </div>
+                            <div class="format-card" onclick="selectExportFormat(this, 'coco')">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">📦</div>
+                                <strong>COCO</strong>
+                                <p>Single JSON file per split.</p>
+                            </div>
+                            <div class="format-card" onclick="selectExportFormat(this, 'voc')">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">🖼️</div>
+                                <strong>Pascal VOC</strong>
+                                <p>XML files in VOC format.</p>
+                            </div>
+                            <div class="format-card" onclick="selectExportFormat(this, 'labelme')">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">🏷️</div>
+                                <strong>LabelMe</strong>
+                                <p>JSON files in LabelMe format.</p>
+                            </div>
+                            <div class="format-card" onclick="selectExportFormat(this, 'json')">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">🧩</div>
+                                <strong>JSON (Native)</strong>
+                                <p>Simple JSON dump of annotations.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Splits -->
+                    <div class="wizard-step" id="export-step-2" style="display: none;">
+                        <h3 style="font-size: 2rem; margin-bottom: 30px; color: #34495e;">Step 2: Data Split</h3>
+                        <div style="margin-top: 40px; max-width: 800px;">
+                            <label
+                                style="font-weight: bold; display: block; margin-bottom: 20px; font-size: 1.2rem;">Train
+                                / Val / Test Ratio</label>
+                            <div style="display: flex; gap: 40px; margin-bottom: 20px; align-items: center;">
+                                <div style="display: flex; flex-direction: column; flex: 1;">
+                                    <input type="number" id="split-train" value="80" class="form-control"
+                                        style="font-size: 1.5rem; padding: 15px; text-align: center;">
+                                    <span
+                                        style="font-size: 1.1rem; text-align: center; margin-top: 10px; font-weight: bold;">Train
+                                        %</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; flex: 1;">
+                                    <input type="number" id="split-val" value="10" class="form-control"
+                                        style="font-size: 1.5rem; padding: 15px; text-align: center;">
+                                    <span
+                                        style="font-size: 1.1rem; text-align: center; margin-top: 10px; font-weight: bold;">Val
+                                        %</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; flex: 1;">
+                                    <input type="number" id="split-test" value="10" class="form-control"
+                                        style="font-size: 1.5rem; padding: 15px; text-align: center;">
+                                    <span
+                                        style="font-size: 1.1rem; text-align: center; margin-top: 10px; font-weight: bold;">Test
+                                        %</span>
+                                </div>
+                            </div>
+                            <div id="split-error"
+                                style="color: #c0392b; font-size: 1.2rem; font-weight: bold; display: none; margin-top: 20px;">
+                                Total must equal 100%</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Augmentation & Processing -->
+                    <div class="wizard-step" id="export-step-3" style="display: none; height: 100%;">
+
+                        <div style="display: flex; height: 100%; gap: 40px;">
+                            <!-- Controls Column (Left) -->
+                            <div class="aug-controls"
+                                style="flex: 0 0 350px; background: #f8f9fa; padding: 30px; border-radius: 12px; overflow-y: auto;">
+                                <h3 style="margin-top: 0; font-size: 1.5rem; margin-bottom: 20px;">Configuration</h3>
+
+                                <h4 style="margin-top: 0; font-size: 1.2rem; color: #2c3e50;">Preprocessing</h4>
+                                <div class="form-group" style="margin-bottom: 20px;">
+                                    <label style="display: block; margin-bottom: 8px;">Resize (WxH)</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="number" id="resize-w" placeholder="W" class="form-control"
+                                            style="padding: 10px;">
+                                        <input type="number" id="resize-h" placeholder="H" class="form-control"
+                                            style="padding: 10px;">
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 30px;">
+                                    <label
+                                        style="display: flex; align-items: center; gap: 10px; font-size: 1.1rem; cursor: pointer;">
+                                        <input type="checkbox" id="export-grayscale" onchange="updatePreview()"
+                                            style="width: 20px; height: 20px;"> Convert to Grayscale
+                                    </label>
+                                </div>
+
+                                <h4 style="margin-top: 30px; font-size: 1.2rem; color: #2c3e50;">Augmentations</h4>
+                                <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">Techniques are
+                                    distributed across generated variants.</p>
+
+                                <div class="slider-control" style="margin-bottom: 20px;">
+                                    <label>Brightness: <span id="val-brightness">0</span></label>
+                                    <input type="range" id="aug-brightness" min="-100" max="100" value="0"
+                                        style="width: 100%; margin-top: 5px;" oninput="updatePreview()">
+                                </div>
+                                <div class="slider-control" style="margin-bottom: 20px;">
+                                    <label>Contrast: <span id="val-contrast">0</span></label>
+                                    <input type="range" id="aug-contrast" min="-100" max="100" value="0"
+                                        style="width: 100%; margin-top: 5px;" oninput="updatePreview()">
+                                </div>
+                                <div class="slider-control" style="margin-bottom: 20px;">
+                                    <label>Blur: <span id="val-blur">0</span></label>
+                                    <input type="range" id="aug-blur" min="0" max="10" value="0" step="1"
+                                        style="width: 100%; margin-top: 5px;" oninput="updatePreview()">
+                                </div>
+                                <div class="slider-control" style="margin-bottom: 20px;">
+                                    <label>Noise: <span id="val-noise">0</span></label>
+                                    <input type="range" id="aug-noise" min="0" max="50" value="0"
+                                        style="width: 100%; margin-top: 5px;" oninput="updatePreview()">
+                                </div>
+                                <div class="slider-control" style="margin-bottom: 30px;">
+                                    <label>Rotation: <span id="val-rotation">0</span>°</label>
+                                    <input type="range" id="aug-rotation" min="-180" max="180" value="0"
+                                        style="width: 100%; margin-top: 5px;" oninput="updatePreview()">
+                                </div>
+
+                                <div
+                                    style="margin-top: 30px; padding: 20px; background: #e8f6fd; border: 1px solid #3498db; border-radius: 8px;">
+                                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">Dataset
+                                        Multiplier</label>
+                                    <select id="export-multiplier" class="form-control"
+                                        style="width: 100%; font-size: 1.1rem; padding: 10px;"
+                                        onchange="updateDatasetEstimation()">
+                                        <option value="1">1x (Original Only)</option>
+                                        <option value="2">2x (Original + 1 Variant)</option>
+                                        <option value="3">3x (Original + 2 Variants)</option>
+                                        <option value="5">5x (Original + 4 Variants)</option>
+                                        <option value="10">10x (Original + 9 Variants)</option>
+                                    </select>
+                                    <div style="margin-top: 15px; text-align: center;">
+                                        <span style="display: block; font-size: 0.9rem; color: #555;">Estimated
+                                            Output</span>
+                                        <span id="est-output-count"
+                                            style="font-size: 1.5rem; color: #2980b9; font-weight: bold;">0
+                                            images</span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <!-- Preview Column (Right) -->
+                            <div class="aug-preview" style="flex: 1; display: flex; flex-direction: column;">
+                                <h3 style="margin-top: 0; font-size: 1.5rem; margin-bottom: 20px;">Real-time Preview
+                                </h3>
+
+                                <div
+                                    style="flex: 1; display: flex; gap: 20px; background: #333; border-radius: 12px; padding: 20px; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+
+                                    <div
+                                        style="flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <span
+                                            style="color: white; margin-bottom: 10px; font-size: 1.2rem; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px;">Original</span>
+                                        <img id="preview-original" src=""
+                                            style="max-width: 100%; max-height: 90%; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                                    </div>
+
+                                    <div style="width: 2px; height: 80%; background: rgba(255,255,255,0.2);"></div>
+
+                                    <div
+                                        style="flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <span
+                                            style="color: white; margin-bottom: 10px; font-size: 1.2rem; background: #3498db; padding: 5px 15px; border-radius: 20px;">Preview
+                                            (One Potential Variant)</span>
+                                        <img id="preview-aug" src=""
+                                            style="max-width: 100%; max-height: 90%; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                                    </div>
+
+                                    <div id="preview-loading"
+                                        style="position: absolute; bottom: 20px; right: 20px; color: white; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 4px; display: none;">
+                                        Generating preview...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="wizard-footer">
+                    <div style="display: flex; gap: 15px;">
+                        <button class="btn btn-secondary" onclick="closeExportWizard()"
+                            style="font-size: 1.2rem; padding: 12px 30px; background-color: #e74c3c; border: none; color: white; cursor: pointer;">Cancel</button>
+                        <button class="btn btn-secondary" id="export-btn-back" onclick="exportWizardBack()"
+                            style="display: none; font-size: 1.2rem; padding: 12px 30px; cursor: pointer;">Back</button>
+                    </div>
+
+                    <div style="flex: 1;"></div>
+                    <button class="btn btn-primary" id="export-btn-next" onclick="exportWizardNext()"
+                        style="font-size: 1.2rem; padding: 12px 30px; cursor: pointer;">Next Step</button>
+                    <button class="btn btn-success" id="export-btn-finish" onclick="startExport()"
+                        style="display: none; font-size: 1.2rem; padding: 12px 30px; cursor: pointer;">Start
+                        Export</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Selection Popup -->
+    <div id="class-selection-popup" class="class-popup">
+        <div class="class-popup-header">Select Class</div>
+        <div id="class-options-list" class="class-options-list"></div>
+        <button class="btn-add-option" onclick="showAddClassModal()">+ Add New Class</button>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- System Logs Modal -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📜 System Activity Logs</h2>
+                <span class="close" onclick="hideLogsModal()">&times;</span>
+            </div>
+
+            <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                Track background tasks, AI auto-annotations, and model training events.
+            </p>
+
+            <div id="logs-list">
+                <!-- Logs will be injected here -->
+            </div>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-secondary" onclick="hideLogsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Confirmation Modal Overlay -->
+    <div id="confirmation-overlay">
+        <div class="confirm-box">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <p id="confirm-message">Are you sure you want to proceed?</p>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" onclick="closeConfirmation()">Cancel</button>
+                <button class="btn btn-danger" id="confirm-btn-yes">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Task Monitor (Fixed at Bottom) -->
+    <div id="global-task-monitor"
+        style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; padding: 15px 25px; border-radius: 50px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); display: none; align-items: center; gap: 20px; z-index: 10001; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+        <div id="global-task-icon" style="font-size: 1.5rem; animation: pulse 2s infinite;">🚀</div>
+        <div style="flex: 1; min-width: 250px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                <span id="global-task-label" style="font-weight: 600; letter-spacing: 0.5px;">TRAINING MODEL...</span>
+                <span id="global-task-percent" style="font-family: monospace; color: #38f9d7;">0%</span>
+            </div>
+            <div
+                style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div id="global-task-fill"
+                    style="width: 0%; height: 100%; background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 15px rgba(56, 249, 215, 0.5);">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script src="/static/app.js"></script>
+    <!-- Auth Modal -->
+    <div class="modal" id="auth-modal" style="display: none; background: rgba(0,0,0,0.8); z-index: 30000;">
+        <div class="modal-content" style="max-width: 400px; padding: 40px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <img src="/static/logo3.png" style="height: 60px; margin-bottom: 20px;">
+                <h2 id="auth-modal-title">Login</h2>
+            </div>
+            <div id="login-form-container">
+                <form onsubmit="event.preventDefault(); loginUser(this.username.value, this.password.value)">
+                    <div class="form-group"><label>Username</label><input type="text" name="username"
+                            class="form-control" required></div>
+                    <div class="form-group"><label>Password</label>
+                        <div style="position:relative;">
+                            <input type="password" name="password" class="form-control" style="padding-right: 40px;"
+                                required>
+                            <button type="button" onclick="togglePasswordVis(this)"
+                                style="position:absolute; right:10px; top:12px; background:none; border:none; cursor:pointer;"
+                                tabindex="-1">👁️</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                    <p style="text-align: center; margin-top: 15px;">Don't have an account? <a href="#"
+                            onclick="showAuthModal('register')">Sign Up</a></p>
+                    <p style="text-align: center; margin-top: 5px; font-size: 13px;">
+                        <a href="#" onclick="showAuthModal('forgotPassword')" style="color: #e67e22;">🔑 Forgot
+                            Password?</a>
+                    </p>
+                </form>
+            </div>
+            <div id="register-form-container" style="display: none;">
+                <form onsubmit="event.preventDefault(); registerUser(this.username.value, this.password.value)">
+                    <div class="form-group"><label>Username</label><input type="text" name="username"
+                            class="form-control" required></div>
+                    <div class="form-group"><label>Password</label>
+                        <div style="position:relative;">
+                            <input type="password" name="password" class="form-control" style="padding-right: 40px;"
+                                required>
+                            <button type="button" onclick="togglePasswordVis(this)"
+                                style="position:absolute; right:10px; top:12px; background:none; border:none; cursor:pointer;"
+                                tabindex="-1">👁️</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
+                    <p style="text-align: center; margin-top: 15px;">Already have an account? <a href="#"
+                            onclick="showAuthModal('login')">Login</a></p>
+                </form>
+            </div>
+            <!-- Forgot Password (Security Question) Form -->
+            <div id="forgot-password-form-container" style="display: none;">
+                <div id="forgot-password-step-1">
+                    <div
+                        style="margin-bottom: 16px; padding: 12px; background: #e8f4fd; border-radius: 8px; font-size: 13px; color: #155724;">
+                        Enter your username to reset your password using your security question.
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="forgot-pw-username" class="form-control" placeholder="JaneDoe123"
+                            required>
+                    </div>
+                    <button type="button" class="btn btn-primary" style="width: 100%;"
+                        onclick="fetchSecurityQuestion()">Next</button>
+                    <p style="text-align: center; margin-top: 15px;"><a href="#" onclick="showAuthModal('login')">← Back
+                            to Login</a></p>
+                </div>
+
+                <div id="forgot-password-step-2" style="display: none;">
+                    <div
+                        style="margin-bottom: 16px; padding: 12px; background: #fef9e7; border-radius: 8px; border-left: 3px solid #f39c12; font-size: 13px; color: #7d6608;">
+                        <strong>Security Question:</strong> <span id="forgot-pw-question-text"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Your Answer</label>
+                        <input type="text" id="forgot-pw-answer" class="form-control" placeholder="Answer" required>
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="forgot-pw-new" class="form-control" style="padding-right: 40px;"
+                                placeholder="Min 6 characters" required>
+                            <button type="button" onclick="togglePasswordVis(this)"
+                                style="position:absolute; right:10px; top:12px; background:none; border:none; cursor:pointer;"
+                                tabindex="-1">👁️</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" style="width: 100%; margin-top: 10px;"
+                        onclick="submitSecurityReset()">Reset Password</button>
+                    <p style="text-align: center; margin-top: 15px;"><a href="#" onclick="showAuthModal('login')">← Back
+                            to Login</a></p>
+                </div>
+            </div>
+
+            <!-- Change Password Form -->
+            <div id="change-password-form-container" style="display: none;">
+                <div
+                    style="margin-bottom: 16px; padding: 12px; background: #fef9e7; border-radius: 8px; border-left: 3px solid #f39c12; font-size: 13px; color: #7d6608;">
+                    ⚠️ Use this form to change your password if you know your current one.
+                </div>
+                <div class="form-group"><label>Current Password</label>
+                    <input type="password" id="change-pw-old" class="form-control" placeholder="Your current password">
+                </div>
+                <div class="form-group"><label>New Password</label>
+                    <input type="password" id="change-pw-new" class="form-control" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group"><label>Confirm New Password</label>
+                    <input type="password" id="change-pw-confirm" class="form-control"
+                        placeholder="Repeat new password">
+                </div>
+                <button class="btn btn-primary" style="width:100%;" onclick="changeUserPassword()">🔑 Change
+                    Password</button>
+                <p style="text-align: center; margin-top: 15px;"><a href="#" onclick="showAuthModal('login')">← Back to
+                        Login</a></p>
+
+                <!-- Admin Reset Section (only meaningful when admin is logged in and helping others) -->
+                <hr style="margin: 20px 0; border-color: #eee;">
+                <div style="font-size: 12px; color: #999; text-align: center; margin-bottom: 10px;">👮 Admin only —
+                    Reset another user's password</div>
+                <div class="form-group"><label>Username to Reset</label>
+                    <input type="text" id="admin-reset-username" class="form-control" placeholder="Enter username">
+                </div>
+                <div class="form-group"><label>New Password</label>
+                    <input type="password" id="admin-reset-newpass" class="form-control" placeholder="Min 6 characters">
+                </div>
+                <button class="btn btn-danger" style="width:100%;" onclick="adminResetPassword()">⚡ Admin Reset
+                    Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Analytics Modal -->
+    <div class="modal" id="project-analytics-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📊 <span id="project-analytics-title">Project Analytics</span></h2>
+                <button class="close-btn"
+                    onclick="document.getElementById('project-analytics-modal').style.display='none'">&times;</button>
+            </div>
+            <div id="project-analytics-content" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="text-align: center; color: #7f8c8d; padding: 20px;">Loading analytics...</div>
+            </div>
+        </div>
+    </div>
+    <!-- Create User Modal -->
+    <div class="modal" id="create-user-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>➕ Add New User</h2>
+                <button class="close-btn"
+                    onclick="document.getElementById('create-user-modal').style.display='none'">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitCreateUser(this);">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" class="form-control" placeholder="JaneDoe123" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select name="role" id="create-user-role-select" class="form-control" required>
+                        <option value="annotator">Annotator</option>
+                        <!-- Admin can also see Sub-Admin option, injected via JS -->
+                    </select>
+                </div>
+                <div style="display: flex;justify-content: flex-end;gap: 10px;margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('create-user-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Edit User Modal -->
+    <div class="modal" id="edit-user-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>✏️ Edit User</h2>
+                <button class="close-btn"
+                    onclick="document.getElementById('edit-user-modal').style.display='none'">&times;</button>
+            </div>
+            <form id="edit-user-form" onsubmit="event.preventDefault(); submitEditUser(this);">
+                <input type="hidden" name="user_id" id="edit-user-id">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" id="edit-user-username" class="form-control"
+                        placeholder="JaneDoe123" required>
+                </div>
+                <div class="form-group">
+                    <label>New Password (Optional)</label>
+                    <div style="position:relative;">
+                        <input type="password" name="password" class="form-control" style="padding-right: 40px;"
+                            placeholder="Leave blank to keep current">
+                        <button type="button" onclick="togglePasswordVis(this)"
+                            style="position:absolute; right:10px; top:12px; background:none; border:none; cursor:pointer;"
+                            tabindex="-1">👁️</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select name="role" id="edit-user-role-select" class="form-control" required>
+                        <option value="annotator">Annotator</option>
+                        <option value="sub_admin">Sub-Administrator</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div style="display: flex;justify-content: flex-end;gap: 10px;margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('edit-user-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

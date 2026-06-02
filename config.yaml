@@ -1,0 +1,27 @@
+workspace_path: "workspace"
+database_url: "sqlite:///workspace/meta.db"
+host: "0.0.0.0"
+port: 8000
+workers: 4
+max_file_size_mb: 1024
+
+video_extensions:
+  - .mp4
+  - .avi
+  - .mov
+  - .mkv
+  - .webm
+
+image_extensions:
+  - .jpg
+  - .jpeg
+  - .png
+  - .bmp
+  - .tiff
+  - .webp
+
+logging:
+  level: "INFO"
+  file: "logs/annotation_platform.log"
+  max_size_mb: 100
+  backup_count: 5

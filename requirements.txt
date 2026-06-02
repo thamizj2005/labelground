@@ -1,0 +1,29 @@
+# FastAPI Core Backend
+fastapi>=0.95.0
+uvicorn>=0.20.0
+python-multipart>=0.0.6
+pydantic>=1.10.0,<2.0.0
+pyyaml>=6.0
+
+# Database & Authentication
+sqlalchemy>=2.0.0
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+
+# Numerical & Vision Processing
+numpy>=1.23.0
+opencv-python>=4.6.0
+
+# Deep Learning Frameworks
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer Vision & Foundational Models
+ultralytics>=8.1.0
+supervision>=0.18.0
+transformers>=4.30.0
+huggingface-hub>=0.15.0
+
+# Note: Meta Segment Anything (SAM) and Grounding DINO are typically installed 
+# directly from Git repositories. These installation steps are documented in the README 
+# and automated inside the Dockerfile.

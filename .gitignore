@@ -1,0 +1,75 @@
+# --- Python Cache & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.cache/
+
+# --- IDEs & System Files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Media, Datasets & Archives ---
+*.mp4
+*.webm
+*.mov
+*.mkv
+*.avi
+*.zip
+*.tar
+*.gz
+*.zstd
+*.rar
+
+# --- AI Weights & Model Files ---
+weights/
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# --- Custom Training Run Artifacts ---
+runs/
+yolov8n.pt
+
+# --- Local Workspace & Database ---
+workspace/
+!workspace/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Environmental Configurations ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Third-party Clones ---
+Ultralytics/
+ultralytics/

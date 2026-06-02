@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Annotation Platform</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <h2>Projects</h2>
+            <button class="btn btn-primary" style="width: 100%; margin: 10px 0;" onclick="showCreateProjectModal()">
+                New Project
+            </button>
+            <div id="project-list"></div>
+
+            <div style="margin-top: 30px;">
+                <h3>Images</h3>
+                <div id="image-list" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="top-bar">
+                <div>
+                    <h2 id="project-title">Select a Project</h2>
+                    <div id="project-info" style="font-size: 14px; color: #666;"></div>
+                </div>
+                <div id="global-actions"></div>
+            </div>
+
+            <div class="annotation-area" id="annotation-area">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomIn()" title="Zoom In (+)">+</button>
+                    <div class="current-zoom" id="zoom-level">100%</div>
+                    <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out (-)">-</button>
+                    <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom (0)">↺</button>
+                    <button class="zoom-btn" onclick="showKeyboardShortcutsHelp()" title="Keyboard Shortcuts (H)"
+                        style="margin-left: 20px;">❓</button>
+                </div>
+
+
+                <div class="canvas-container" id="canvas-container">
+                    <canvas id="annotation-canvas"></canvas>
+                </div>
+            </div>
+
+            <div class="toolbar" id="toolbar">
+                <!-- Tools will be dynamically added based on project type -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Project Modal -->
+    <div class="modal" id="create-project-modal">
+        <div class="modal-content">
+            <h2>Create New Project</h2>
+            <form id="create-project-form">
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" class="form-control" id="project-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Annotation Type</label>
+                    <select class="select-control" id="annotation-type" required onchange="updateLabelSchemaUI()">
+                        <option value="">Select type</option>
+                        <option value="bbox">Bounding Boxes</option>
+                        <option value="polygon">Polygon Segmentation</option>
+                        <option value="keypoints">Keypoints</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="classes-section">
+                    <label>Classes</label>
+                    <div id="classes-list">
+                        <div class="class-item">
+                            <input type="color" class="class-color" value="#3498db">
+                            <input type="text" class="form-control" placeholder="Class name" style="flex: 1;">
+                            <button type="button" class="btn btn-secondary" onclick="removeClass(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addClass()" style="margin-top: 10px;">
+                        Add Class
+                    </button>
+                </div>
+
+                <div class="form-group" id="keypoints-section" style="display: none;">
+                    <label>Keypoint Definitions</label>
+                    <div id="keypoints-list"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addKeypoint()" style="margin-top: 10px;">
+                        Add Keypoint
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideCreateProjectModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" id="import-modal">
+        <div class="modal-content">
+            <h2>Import Data</h2>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="showImageImport()" style="margin-right: 10px;">
+                    Import Images
+                </button>
+                <button class="btn btn-primary" onclick="showVideoImport()">
+                    Import Video
+                </button>
+            </div>
+
+            <div id="import-image-section" style="display: none;">
+                <div class="form-group">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">📁
+                        Select Images</label>
+                    <input type="file" class="form-control" id="image-file-input" multiple accept="image/*"
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Tip:</strong> You can select multiple images at once
+                    </small>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">📂
+                        Or Select Entire Folder</label>
+                    <input type="file" class="form-control" id="folder-input" webkitdirectory directory multiple
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Tip:</strong> This will import all images from the selected folder
+                    </small>
+                </div>
+                <button class="btn btn-success" onclick="importImagesFromBrowser()"
+                    style="font-size: 18px; padding: 14px 28px; margin-top: 20px;">
+                    📥 Import Selected Files
+                </button>
+            </div>
+
+            <div id="import-video-section" style="display: none;">
+                <div class="form-group">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">🎬
+                        Select Video File</label>
+                    <input type="file" class="form-control" id="video-file-input" accept="video/*"
+                        style="font-size: 16px; padding: 12px; cursor: pointer;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Supported formats:</strong> MP4, AVI, MOV, MKV, WebM
+                    </small>
+                </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label
+                        style="font-size: 18px; font-weight: 600; margin-bottom: 10px; display: block; color: #2c3e50;">⚡
+                        Frames Per Second (FPS)</label>
+                    <input type="number" class="form-control" id="target-fps" value="1" step="0.1" min="0.1" max="60"
+                        style="font-size: 16px; padding: 12px;">
+                    <small style="display: block; margin-top: 10px; color: #555; font-size: 15px; line-height: 1.5;">
+                        💡 <strong>Examples:</strong><br>
+                        • 1 FPS = 1 frame per second (60 frames/minute)<br>
+                        • 0.1 FPS = 1 frame every 10 seconds (6 frames/minute)<br>
+                        • 0.5 FPS = 1 frame every 2 seconds (30 frames/minute)
+                    </small>
+                </div>
+                <button class="btn btn-success" onclick="importVideoFromBrowser()"
+                    style="font-size: 18px; padding: 14px 28px; margin-top: 20px;">
+                    🎬 Extract Frames
+                </button>
+            </div>
+
+            <!-- End of import-modal-content -->
+        </div>
+    </div>
+
+    <!-- Add Class Modal -->
+    <div class="modal" id="add-class-modal">
+        <div class="modal-content" style="min-width: 300px;">
+            <h2>Add New Class</h2>
+            <div class="form-group">
+                <label>Class Name</label>
+                <input type="text" class="form-control" id="new-class-name" placeholder="e.g. bike, van">
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" class="form-control" id="new-class-color" value="#00FF88">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="hideAddClassModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="submitNewClass()">Add Class</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Selection Popup -->
+    <div id="class-selection-popup" class="class-popup">
+        <div class="class-popup-header">Select Class</div>
+        <div id="class-options-list" class="class-options-list"></div>
+        <button class="btn-add-option" onclick="showAddClassModal()">+ Add New Class</button>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
