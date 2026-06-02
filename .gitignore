@@ -73,3 +73,6 @@ workspace/
 # --- Third-party Clones ---
 Ultralytics/
 ultralytics/
+
+# --- Temporary HF Spaces ---
+weights_space/
