@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Hugging Face Weights Space Deployer
+Hugging Face Weights Space Deployer (Strict Clean Packager)
 
 This script automates setting up the dedicated Gradio Space workspace ('weights_space/')
 to host your 5 GB model weights and exposes a beautiful web download dashboard.
+It performs a strict cleanup to ignore any temporary local caches (like .cache/ or matplotlib/).
 
 Usage:
     python scripts/deploy_weights_space.py
@@ -95,12 +96,16 @@ def main():
         print("💡 Run 'python scripts/setup_weights.py' to download the weights first!")
         return
 
-    # 2. Create space folder
-    print(f"\n📂 Creating Space folder at: {SPACE_DIR.relative_to(ROOT_DIR)}...")
-    SPACE_DIR.mkdir(exist_ok=True)
-    (SPACE_DIR / "weights").mkdir(exist_ok=True)
+    # 2. Re-create clean space folder (wiping out old corrupt states)
+    if SPACE_DIR.exists():
+        print(f"🧹 Cleaning up existing workspace at: {SPACE_DIR.relative_to(ROOT_DIR)}...")
+        shutil.rmtree(SPACE_DIR)
+        
+    print(f"📂 Creating clean Space folder at: {SPACE_DIR.relative_to(ROOT_DIR)}...")
+    SPACE_DIR.mkdir(parents=True, exist_ok=True)
+    (SPACE_DIR / "weights").mkdir(parents=True, exist_ok=True)
 
-    # 3. Copy app.py and README.md
+    # 3. Write app.py and README.md
     print("🛠️ Writing Gradio app dashboard...")
     with open(SPACE_DIR / "app.py", "w") as f:
         f.write(GRADIO_APP_CODE)
@@ -109,22 +114,28 @@ def main():
     with open(SPACE_DIR / "README.md", "w") as f:
         f.write(SPACE_README_CONTENT)
 
-    # 4. Copy model weights
-    print("\n📦 Copying model weights to Space workspace (this may take a minute)...")
+    # 4. Copy ONLY valid model weights (skipping dotfiles and caches)
+    print("\n📦 Copying model weights to Space workspace...")
+    
+    # Define exact folders/files to allow (skip .cache, matplotlib, cache, etc.)
+    allowed_extensions = {'.pth', '.pt', '.py', '.pth', '.bin', '.json', '.txt'}
+    
     for item in WEIGHTS_DIR.iterdir():
+        # Ignore any hidden files/folders (starting with dot) or local caches
+        if item.name.startswith('.') or item.name in ('cache', 'matplotlib', '__pycache__'):
+            print(f"  • Skipping temporary cache: {item.name}")
+            continue
+            
         dest = SPACE_DIR / "weights" / item.name
         if item.is_file():
-            if dest.exists() and dest.stat().st_size == item.stat().st_size:
-                print(f"  • {item.name} already copied. Skipping.")
-            else:
-                print(f"  • Copying {item.name}...")
+            if item.suffix in allowed_extensions:
+                print(f"  • Copying weight file: {item.name}...")
                 shutil.copy2(item, dest)
-        elif item.is_dir():
-            if dest.exists():
-                print(f"  • {item.name}/ already copied. Skipping.")
             else:
-                print(f"  • Copying {item.name}/ directory...")
-                shutil.copytree(item, dest)
+                print(f"  • Skipping non-model file: {item.name}")
+        elif item.is_dir():
+            print(f"  • Copying model directory: {item.name}/...")
+            shutil.copytree(item, dest)
 
     # 5. Initialize Git and Git LFS inside the space
     print("\n🛠️ Configuring local Git LFS for large files...")
@@ -139,7 +150,6 @@ def main():
     os.system("git lfs track 'weights/*.pth'")
     os.system("git lfs track 'weights/*.pt'")
     os.system("git lfs track 'weights/*.bin'")
-    os.system("git lfs track 'weights/bert-base-uncased/*'")
     
     # Copy gitattributes to be committed
     os.system("git add .gitattributes app.py README.md")
