@@ -9,218 +9,218 @@ pinned: false
 license: mit
 ---
 
-# Labelground: An Auto-Adaptive Offline Vision Processing and Annotation Platform
+# Labelground
+
+**A self-hosted, offline-first annotation platform powered by an AI ensemble.**
+
+Labelground runs entirely on your machine. It takes a video or a folder of images, lets an AI take the first pass at annotating them, and then lets you correct, verify, and export the result in formats like YOLO, COCO, and Pascal VOC. The more you correct, the smarter it gets — it retrains itself in the background using your verified labels.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.95%2B-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg?style=flat&logo=pytorch)](https://pytorch.org/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
-
-An elegant, highly automated, locally-hosted annotation and computer vision processing platform designed to accelerate dataset generation while ensuring complete data sovereignty. By employing a tripartite AI ensemble (**YOLO-World**, **Grounding DINO**, and **Segment Anything Model (SAM)**), the platform automates object detection, dynamic open-vocabulary classification, and high-fidelity polygon segmentation in a unified, completely offline environment.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.95%2B-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg?logo=pytorch)](https://pytorch.org/)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg?logo=docker)](https://www.docker.com/)
 
 ---
 
-## 🌟 Key Features
+## What it does
 
-*   **Tripartite AI Ensemble:** Combines YOLO-World (for ultra-fast open-vocabulary bounding boxes), Grounding DINO (for complex, prompt-guided detection), and Meta's Segment Anything Model (SAM) for instant boundary segmentation.
-*   **Active Learning Loop:** Automatically monitors manual corrections of AI-drafted labels. Once verification thresholds are met, the background orchestrator triggers custom model fine-tuning.
-*   **Dynamic Data Augmentation:** Integrates OpenCV-based geometric and photometric transforms (Gaussian blur, noise, brightness shifting, flips) to expand training subsets 10x natively.
-*   **Decoupled High-Performance Core:** FastAPI asynchronous ASGI architecture backed by SQLite (in WAL mode) for concurrent, responsive canvas scaling, and coordinate manipulation.
-*   **Air-Gapped Privacy:** 100% offline. Zero cloud dependencies or tracking, complying with defense, medical, and enterprise data requirements.
+- **Auto-annotation** — Drop in your images or a video file and let the AI draw bounding boxes and polygon masks automatically. No prompting needed, but you can guide it with text if you want specific classes.
+- **Three models working together** — YOLO-World handles fast initial detection, Grounding DINO refines it with text-guided reasoning, and SAM draws the precise pixel-level boundary.
+- **Active learning loop** — Every time you verify a frame, it counts. Once enough frames are verified, the platform kicks off a fine-tuning run in the background so future predictions on your data get better.
+- **Completely offline** — Nothing leaves your machine. No API keys, no cloud uploads, no tracking.
+- **Export anywhere** — When you're done, export your dataset in YOLO, COCO JSON, or Pascal VOC format, split into train/val/test sets.
 
 ---
 
-## 📁 Project Structure
+## Project layout
 
-The project has been cleaned and organized into a professional, modular structure:
-
-```text
-vision/
-├── backend/                  # FastAPI Core Backend & Services
-│   ├── ai_ensemble.py        # Unified YOLO-World, Grounding DINO & SAM Service
-│   ├── ai_service.py         # Standalone / Legacy AI modules
-│   ├── augmentation.py       # OpenCV photometric & geometric image augmentations
-│   ├── auth.py               # JWT auth & security parameters
-│   ├── export.py             # YOLO, VOC, COCO dataset export managers
-│   ├── main.py               # API route definitions and central endpoints
-│   ├── training_orchestrator.py # Active learning background thread monitors
-│   └── upload_endpoints.py   # Streaming video & large chunk file ingestion
-├── database/                 # Relational Database Models
-│   └── models.py             # SQLAlchemy schemas (Users, Projects, Annotations)
-├── filesystem/               # Local Storage Handler
-│   └── workspace.py          # FFmpeg video extraction & namespace sandboxing
-├── scripts/                  # Automated Maintenance & Setup Tools
-│   ├── inspect_db.py         # Database statistics inspection utility
-│   ├── migrate_db.py         # Database schema update & initialization engine
-│   └── setup_weights.py      # Automated model weights downloader &BERT caching
-├── legacy/                   # Legacy & Prototyping Archive (Excluded from main execution)
-│   ├── README_academic.md    # Original Academic Draft & Literature Review
-│   ├── app.py                # Standalone video stream test script
-│   ├── install_multipart.sh  # Quick installation helper script
-│   └── old.py                # Previous backend server backup
-├── static/                   # Frontend Web Interface
-│   ├── index.html            # User authentication entry portal
-│   ├── workspace.html        # Interactive multi-tool annotation canvas
-│   ├── app.js                # Canvas coordinate and vertex mapper engine
-│   └── styles.css            # Responsive layout & premium dark aesthetics
-├── workspace/                # Local Sandboxed Storage (Git Ignored)
-│   ├── meta.db               # Central SQLite metadata storage
-│   └── projects/             # Active annotation projects, images & labels
-├── Dockerfile                # Environment recipe to build auto_annotate_ext from scratch
-├── build.sh                  # Shell script to build the local Docker environment
-├── run.sh                    # Shell script to execute container with host X11 forwarding
-├── run.py                    # Root Python entrypoint (FastAPI local executor)
-├── start.sh                  # Automatic native startup and initialization script
-├── requirements.txt          # Defined Python dependencies
-└── config.yaml               # Global system configuration and default hyperparameters
+```
+labelground/
+├── backend/
+│   ├── ai_ensemble.py        # coordinates YOLO-World, Grounding DINO, and SAM
+│   ├── ai_service.py         # lower-level model loading and inference
+│   ├── augmentation.py       # flips, blur, brightness shifts — 10x dataset expansion
+│   ├── auth.py               # JWT login, bcrypt password hashing
+│   ├── export.py             # YOLO / COCO / VOC export logic
+│   ├── main.py               # all API routes
+│   ├── training_orchestrator.py  # background thread watching for training triggers
+│   └── upload_endpoints.py   # handles video uploads and large file streaming
+├── database/
+│   └── models.py             # SQLAlchemy models for users, projects, annotations
+├── filesystem/
+│   └── workspace.py          # per-project folder management, ffmpeg frame extraction
+├── scripts/
+│   ├── setup_weights.py      # downloads all model weights automatically
+│   ├── inspect_db.py         # prints a summary of your database contents
+│   ├── migrate_db.py         # runs safe schema migrations
+│   └── upload_weights.py     # (maintainer tool) pushes weights to Hugging Face
+├── static/                   # the frontend (HTML, CSS, JS — no framework)
+├── legacy/                   # old drafts and experiments, kept for reference
+├── Dockerfile                # builds the full CUDA environment from scratch
+├── build.sh                  # runs docker build
+├── run.sh                    # runs the container
+├── start.sh                  # startup script (used inside the container)
+├── run.py                    # local entrypoint without Docker
+├── config.yaml               # global settings
+└── requirements.txt          # Python dependencies for local setup
 ```
 
 ---
 
-## 🚀 Quick Start (Native Host Setup)
+## Getting started
 
-### 1. Prerequisite
-Ensure you have **Python 3.10+** installed on your system.
+There are two ways to run this: with Docker (recommended, handles all dependencies) or directly on your machine (faster to start, but you need CUDA set up yourself).
 
-### 2. Setup Virtual Environment & Install Dependencies
-```bash
-# Clone the repository and navigate inside
-cd vision
+### Option 1 — Docker (recommended)
 
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
+This is the easiest path. Docker handles the CUDA environment, all system libraries, and Python packages for you.
 
-# Install all defined dependencies
-pip install -r requirements.txt
-```
+**What you need before starting:**
+- [Docker](https://docs.docker.com/get-docker/) installed
+- An NVIDIA GPU with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) set up
+- About 20 GB of free disk space for the image
 
-### 3. Automatically Download Model Weights (5 GB)
-To support the fully offline zero-shot AI ensemble, you need the pre-trained weights. We provide a single-command setup tool that writes configs, downloads the SAM/GroundingDINO weights from official repositories, and downloads/caches the local BERT tokenizer.
+**Step 1 — Clone the repository**
 
 ```bash
-python scripts/setup_weights.py
+git clone https://github.com/thamizj2005/labelground.git
+cd labelground
 ```
 
-### 4. Launch the Platform
+**Step 2 — Download the model weights**
+
+The AI models are hosted on Hugging Face and need to be pulled before you build the image.
+
 ```bash
-# Make start.sh executable and run
-chmod +x start.sh
-./start.sh
+pip install huggingface_hub
+huggingface-cli download thamizhg/labelground-weights --local-dir weights
 ```
-Access the system interface at **`http://localhost:8000`**. The default login is `admin` / `admin123`.
 
----
+This downloads roughly 4 GB. Go make a coffee.
 
-## 🐋 Docker Environment Setup (`auto_annotate_ext`)
+**Step 3 — Build the Docker image**
 
-To run the application fully isolated with complete CUDA acceleration, you can build and execute the project using our pre-configured Docker suite:
-
-### 1. Build the Docker Image (Free & Local)
-This compiles the Grounding DINO CUDA operators and sets up all AI tools automatically inside a standard PyTorch CUDA container.
 ```bash
 chmod +x build.sh
 ./build.sh
 ```
 
-### 2. Run the Container
+This compiles GroundingDINO's CUDA operators and installs everything inside the container. First build takes 10–20 minutes depending on your connection and machine. Subsequent builds are cached and much faster.
+
+**Step 4 — Run it**
+
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
-*Note: The container uses host network binding (`--net=host`) and X11 forwarding to allow seamless streaming, video extraction, and web API responses on port `8000`.*
+
+Open your browser and go to `http://localhost:8000`.  
+Default login: **admin / admin123**
 
 ---
 
-## 💸 Cost-Free Solutions for Image & Model Weights Sharing
+### Option 2 — Local Python setup (no Docker)
 
-Distributing large Deep Learning environments (20 GB Docker image) and foundational weights (5 GB files) is notoriously expensive or bandwidth-prohibitive. Below are **100% free, industry-standard, and elegant solutions** implemented in this repository.
+If you already have a working CUDA environment and don't want the overhead of Docker, you can run it directly.
 
-### 📦 1. Sharing the 20 GB Docker Environment for Free
+**What you need:**
+- Python 3.10 or newer
+- CUDA toolkit matching your PyTorch version (PyTorch 2.0+ recommended)
+- `ffmpeg` installed system-wide (for video frame extraction)
 
-#### Solution A: Infrastructure as Code (Recommended)
-Instead of distributing a pre-compiled 20 GB binary image, you share the **`Dockerfile`** included in this repository. 
-*   **Why it's perfect:** It is $0 cost, occupies 2 KB of space on Git, and is the industry-standard way to share open-source code.
-*   **How others use it:** Any user clones your repo, runs `./build.sh`, and Docker compiles the exact environment dynamically on their local GPU in about 5-10 minutes.
+**Step 1 — Clone and set up a virtual environment**
 
-#### Solution B: Compress & Upload to TeraBox or Google Drive
-If you must share a pre-compiled container image, you can export and compress it:
-1.  **Export and compress the image** (Docker files are highly repetitive; compression reduces 20 GB to ~6-8 GB):
-    ```bash
-    docker save auto_annotate_ext | gzip -9 > auto_annotate_ext.tar.gz
-    ```
-2.  **Upload for free:**
-    *   **TeraBox (Recommended):** Offers **1 TB (1024 GB)** of storage completely free. Perfect for hosting heavy image tarballs.
-    *   **Google Drive:** Uses the **15 GB** free tier (the compressed 7 GB tarball will fit easily).
-    *   **Mega.nz:** Offers **20 GB** free cloud storage.
+```bash
+git clone https://github.com/thamizj2005/labelground.git
+cd labelground
 
-#### Solution C: GitHub Container Registry (GHCR)
-GitHub offers **free** public container hosting under their packages service (`ghcr.io`) for public repositories.
-1.  Authenticate with your GitHub Personal Access Token (PAT).
-2.  Tag and push the image:
-    ```bash
-    docker tag auto_annotate_ext ghcr.io/your-github-username/labelground:latest
-    docker push ghcr.io/your-github-username/labelground:latest
-    ```
-3.  Others pull it in seconds: `docker pull ghcr.io/your-github-username/labelground:latest`.
+python3 -m venv venv
+source venv/bin/activate   # on Windows: venv\Scripts\activate
 
----
+pip install -r requirements.txt
+```
 
-### 🧠 2. Sharing the 5 GB Model Weights for Free
+**Step 2 — Download the model weights**
 
-#### Solution A: Automated Download Script (Included)
-We have added a custom script **`scripts/setup_weights.py`** to the repository.
-*   **Why it's perfect:** It prevents your Git repository from being bloated. It uses zero Git storage or LFS bandwidth.
-*   **How it works:** When a user clones your repo and runs `python scripts/setup_weights.py`, the script fetches SAM from Meta's servers, Grounding DINO from the IDEA-Research repository, and BERT tokenizer via HuggingFace's public endpoints.
+```bash
+python scripts/setup_weights.py
+```
 
-#### Solution B: Hugging Face Model Hub (100% Free)
-Hugging Face is the premier, unlimited-space hosting provider for ML weights. It supports Git LFS with extremely fast download speeds at zero cost.
-1.  Create a free account on [huggingface.co](https://huggingface.co/).
-2.  Create a new Model Repository (e.g., `username/labelground-weights`).
-3.  Upload the contents of your local `weights/` folder via the web interface or Git CLI.
-4.  Provide this single download command in your README for users:
-    ```bash
-    pip install huggingface_hub
-    huggingface-cli download username/labelground-weights --local-dir weights
-    ```
+This script downloads SAM, Grounding DINO, and the BERT tokenizer (about 4–5 GB total) and puts them in the `weights/` folder.
 
-#### Solution C: GitHub Releases (100% Free)
-GitHub has a strict limit of 100 MB per file in Git, and Git LFS has bandwidth caps. However, **GitHub Releases are 100% free and allow assets up to 2 GB per file**.
-1.  Create a release on your GitHub repository (e.g., `v1.0.0-weights`).
-2.  Attach your weight files (`groundingdino_swint_ogc.pth` [694 MB] and `sam_vit_b_01ec64.pth` [375 MB]) directly to the release page.
-3.  Users can download them directly from the release page or via curl:
-    ```bash
-    curl -L -o weights/sam_vit_b_01ec64.pth https://github.com/your-username/labelground/releases/download/v1.0.0-weights/sam_vit_b_01ec64.pth
-    ```
+Alternatively, pull from Hugging Face directly:
+
+```bash
+pip install huggingface_hub
+huggingface-cli download thamizhg/labelground-weights --local-dir weights
+```
+
+**Step 3 — Start the server**
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+Or just run Python directly:
+
+```bash
+python run.py
+```
+
+Open `http://localhost:8000` in your browser.  
+Default login: **admin / admin123**
 
 ---
 
-## 🔄 Annotation & Active Learning Workflow
+## How annotation works
 
-### 1. Data Ingestion
-Upload static images or import an `.mp4` video. The asynchronous filesystem pipeline unrolls the video into chronological frames using optimized FFmpeg parameters based on your desired FPS.
+Once you're in, the workflow goes like this:
 
-### 2. Auto-Annotation Hypothesis
-Select a single frame or batch of frames, insert the text prompts, and click **Auto-Annotate**. The backend Singleton AI Ensemble passes tensors to YOLO-World and Grounding DINO, then applies mathematical **Non-Maximum Suppression (NMS)** to resolve overlapping boundaries.
-
-### 3. Sub-pixel Polygon Delineation
-If semantic segmentation is required, the user clicks the target object boundary. The Segment Anything Model (SAM) extracts the high-resolution vector mask and outputs a serialized JSON array representing the polygon contour coordinates.
-
-### 4. Background Active Learning
-As human annotators correct AI suggestions, the database updates the frame status from `draft` to `verified`. Once the designated verification threshold (e.g., 10 images) is reached, the **`TrainingOrchestrator`** wakes up, triggers the 10x augmentation pipeline, and initiates local PyTorch fine-tuning in the background, continuously improving system predictions.
-
-### 5. Multi-Format Export
-Export the curated dataset splits (Train/Val/Test ratios) into standard formatting schemas including **YOLO text**, **Pascal VOC XML**, or **COCO JSON**.
+1. **Create a project** and upload either images or an `.mp4` file. Videos get split into frames automatically.
+2. **Run auto-annotation** on a frame or a batch. The backend sends the image through YOLO-World and Grounding DINO to get bounding boxes, then passes those to SAM to get polygon masks.
+3. **Review and correct** the results on the canvas. Drag vertices, redraw polygons, delete wrong labels, add new ones.
+4. **Mark frames as verified.** Once you hit the verification threshold (configurable in `config.yaml`), the training orchestrator wakes up and fine-tunes the model on your verified frames in the background.
+5. **Export** when ready. Choose your format (YOLO / COCO / VOC) and your split ratios (e.g., 80/10/10 train/val/test).
 
 ---
 
-## 🛠️ Tech Stack & Acknowledgments
+## Model weights
 
-*   **FastAPI** & **Uvicorn** for asynchronous REST backend services.
-*   **SQLAlchemy** & **SQLite (WAL)** for robust metadata transaction handling.
-*   **PyTorch** & **NVIDIA CUDA** for accelerated tensor computing.
-*   **Ultralytics YOLOv8 & YOLO-World** for real-time open-vocabulary bounding boxes.
-*   **IDEA-Research Grounding DINO** for text-guided zero-shot detection.
-*   **Meta AI Segment Anything (SAM)** for interactive boundary extraction.
-*   **OpenCV** & **NumPy** for sub-millisecond vision array math.
+All model weights are hosted for free on Hugging Face:
+
+👉 [https://huggingface.co/thamizhg/labelground-weights](https://huggingface.co/thamizhg/labelground-weights)
+
+| Model | File | Size |
+|---|---|---|
+| SAM ViT-H | `sam_vit_h_4b8939.pth` | 2.56 GB |
+| SAM ViT-B | `sam_vit_b_01ec64.pth` | 375 MB |
+| Grounding DINO | `groundingdino_swint_ogc.pth` | 694 MB |
+| YOLO-World | `yolov8l-worldv2.pt` | 94 MB |
+| BERT tokenizer | `bert-base-uncased/` | ~420 MB |
+
+Download them all with one command:
+
+```bash
+huggingface-cli download thamizhg/labelground-weights --local-dir weights
+```
+
+---
+
+## Tech stack
+
+- **FastAPI + Uvicorn** — async REST backend
+- **SQLAlchemy + SQLite (WAL mode)** — metadata and annotation storage
+- **PyTorch + CUDA** — model inference and fine-tuning
+- **Ultralytics YOLO-World** — open-vocabulary object detection
+- **IDEA-Research Grounding DINO** — text-guided zero-shot detection
+- **Meta Segment Anything (SAM)** — polygon boundary extraction
+- **OpenCV** — frame processing, augmentations
+- **bcrypt + python-jose** — authentication
+
+---
+
+## License
+
+MIT. Do whatever you want with it, just don't hold me liable.

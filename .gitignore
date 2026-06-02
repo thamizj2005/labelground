@@ -76,3 +76,8 @@ ultralytics/
 
 # --- Temporary HF Spaces ---
 weights_space/
+
+# --- Local cache directories ---
+cache/
+.cache/
+matplotlib/
